@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>學校行事曆</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.21/mammoth.browser.min.js"></script>
+
+  <style>
+    :root {
+      --primary-color: #3b82f6;
+      --primary-hover: #2563eb;
+      --purple-main: #8b5cf6;
+      --purple-hover: #7c3aed;
+      --purple-light: #ede9fe;
+      --text-main: #1f2937;
+      --text-muted: #4b5563;
+      --white: #ffffff;
+      --shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --border-radius: 12px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Noto Sans TC', sans-serif;
+      background: #ffffff;
+      color: var(--text-main);
+      min-height: 100vh;
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 20px 0; }
+
+    .view-section { display: none; animation: fadeIn 0.4s ease forwards; }
+    .view-section.active { display: block; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .card {
+  background: var(--white);
+  border-radius: var(--border-radius);
+  padding: 30px;
+  box-shadow: var(--shadow-soft);
+  margin-bottom: 0;
+  border: 1px solid #f3f4f6;
+}
+
+    .section-title { font-size: 1.25rem; font-weight: 700; border-bottom: 2px solid #f3f4f6; padding-bottom: 10px; margin-bottom: 20px; }
+
+    .top-bar-container { display: flex; gap: 20px; align-items: center; margin-bottom: 25px; }
+
+    .week-navigation { flex-grow: 1; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 12px 20px; border-radius: 8px; border: 1px solid #f1f5f9; }
+    
+    .week-label { font-size: 16px; font-weight: 700; color: var(--primary-color); text-align: center; }
+
+    .nav-btn {
+      display: flex; align-items: center; gap: 5px; background-color: var(--primary-color);
+      color: var(--white); border: none; padding: 10px 20px; border-radius: 6px;
+      font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; font-family: inherit;
+    }
+    .nav-btn:hover:not(:disabled) { background-color: var(--primary-hover); transform: translateY(-1px); }
+    .nav-btn:disabled { background-color: #cbd5e1; cursor: not-allowed; color: #f8fafc; }
+
+    .admin-toggle { width: 48px; height: 48px; flex-shrink: 0; cursor: pointer; background: transparent; display: flex; justify-content: center; align-items: center; transition: color 0.2s ease; color: #374151; }
+    .admin-toggle:hover { color: var(--primary-color); }
+
+    .tab-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+    .tab-btn {
+      background-color: #f3f4f6; color: var(--text-muted); border: none; padding: 10px 24px;
+      border-radius: 6px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s ease; font-family: inherit;
+    }
+    .tab-btn:hover { background-color: var(--purple-light); color: var(--purple-hover); }
+    .tab-btn.active { background-color: var(--purple-main); color: var(--white); box-shadow: 0 4px 6px -1px rgba(139, 92, 246, 0.4); }
+
+    /* 這裡已為您移除 .tab-divider 的設計 */
+
+    .tab-content {
+  background-color: #fcfaff; padding: 25px; border-radius: 8px; border: 1px solid var(--purple-light);
+  font-size: 14px; line-height: 1.8;
+}
+    .tab-pane { display: none; animation: fadeIn 0.3s ease; }
+    .tab-pane.active { display: block; }
+    .empty-message { color: #9ca3af; font-style: italic; }
+
+    .form-group { margin-bottom: 20px; display: flex; flex-direction: column; }
+    .form-group label { font-weight: 500; margin-bottom: 8px; }
+    input[type="file"], input[type="password"] { padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; background-color: #f9fafb; outline: none; font-size: 1.1rem; }
+    input[type="password"]:focus { border-color: var(--primary-color); }
+    
+    button.action-btn { background-color: var(--primary-color); color: var(--white); border: none; padding: 12px 24px; border-radius: 8px; font-size: 1rem; font-weight: 500; cursor: pointer; transition: 0.2s ease; }
+    button.action-btn:hover { background-color: var(--primary-hover); }
+    button.action-btn:disabled { background-color: #9ca3af; cursor: not-allowed; }
+    .loading { text-align: center; color: var(--text-muted); padding: 20px; font-weight: 500; }
+
+    /* Modal */
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.4); display: flex; justify-content: center; align-items: center; z-index: 9999; opacity: 0; visibility: hidden; transition: 0.3s ease; }
+    .modal-overlay.active { opacity: 1; visibility: visible; }
+    .modal-content { background: var(--white); width: 90%; max-width: 400px; border-radius: var(--border-radius); padding: 30px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); transform: translateY(-20px); transition: 0.3s ease; text-align: center; }
+    .modal-overlay.active .modal-content { transform: translateY(0); }
+    .modal-title { font-size: 1.5rem; font-weight: 700; margin-top: 0; margin-bottom: 10px; }
+    .modal-body { color: var(--text-muted); margin-bottom: 25px; line-height: 1.6; }
+    .modal-btn-group { display: flex; gap: 10px; justify-content: center; }
+    .modal-btn { flex: 1; padding: 12px; background: var(--primary-color); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 500; transition: 0.2s ease; }
+    .modal-btn:hover { background: var(--primary-hover); }
+    .modal-btn.btn-cancel { background: #9ca3af; }
+    .modal-btn.btn-cancel:hover { background: #6b7280; }
+    .modal-icon { font-size: 3rem; margin-bottom: 15px; }
+    .icon-success { color: #10b981; } .icon-error { color: #ef4444; } .icon-info { color: var(--primary-color); }
+  </style>
+</head>
+<body>
+
+  <div id="customModal" class="modal-overlay">
+    <div class="modal-content">
+      <div id="modalIcon" class="modal-icon"></div>
+      <h3 id="modalTitle" class="modal-title"></h3>
+      <div id="modalBody" class="modal-body"></div>
+      <button class="modal-btn" onclick="closeModal()">確認</button>
+    </div>
+  </div>
+
+  <div id="passwordModal" class="modal-overlay">
+    <div class="modal-content">
+      <h3 class="modal-title">進入後台管理</h3>
+      <div class="modal-body" style="margin-bottom: 15px;">請輸入管理員密碼</div>
+      <div class="form-group" style="margin-bottom: 25px;">
+        <input type="password" id="adminPwdInput" placeholder="請輸入密碼..." autocomplete="off">
+      </div>
+      <div class="modal-btn-group">
+        <button class="modal-btn btn-cancel" onclick="closePasswordModal()">取消</button>
+        <button class="modal-btn" id="btnVerify" onclick="verifyAndToggleView()">確認</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div id="calendarView" class="view-section active">
+      <div class="card">
+        <div class="top-bar-container">
+          <div id="weekNav" class="week-navigation" style="display: none;">
+            <button id="prevBtn" class="nav-btn" onclick="changeWeek(-1)">&lt; 上一週</button>
+            <div id="weekLabel" class="week-label">載入中...</div>
+            <button id="nextBtn" class="nav-btn" onclick="changeWeek(1)">下一週 &gt;</button>
+          </div>
+          
+          <div class="admin-toggle" onclick="requestAdminAccess()" title="進入後台管理">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </div>
+        </div>
+        <div id="calendarContainer"><div class="loading">設定讀取中，請稍候...</div></div>
+      </div>
+    </div>
+
+    <div id="adminView" class="view-section">
+      <div class="card">
+        <div class="top-bar-container" style="justify-content: space-between; border-bottom: 2px solid #f3f4f6; padding-bottom: 10px;">
+          <div class="section-title" style="border:none; margin:0; padding:0;">後台管理：上傳行事曆 (解析 Word 檔)</div>
+          <div class="admin-toggle" onclick="backToCalendar()" title="返回行事曆">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 12H5"></path><path d="M12 19l-7-7 7-7"></path>
+            </svg>
+          </div>
+        </div>
+        
+        <div class="form-group" style="margin-top:20px;">
+          <label for="wordFile">選擇 Word 行事曆檔案 (.docx)</label>
+          <input type="file" id="wordFile" accept=".docx" />
+        </div>
+        <button id="btnUpload" class="action-btn" onclick="handleUpload()">解析並覆蓋原資料</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.alert = function() { console.warn("已停用 alert"); };
+    window.confirm = function() { console.warn("已停用 confirm"); return false; };
+    window.prompt = function() { console.warn("已停用 prompt"); return null; };
+
+    function showModal(title, message, type = 'info') {
+      const modal = document.getElementById('customModal');
+      document.getElementById('modalTitle').innerText = title;
+      document.getElementById('modalBody').innerHTML = message;
+      document.getElementById('modalIcon').innerHTML = type === 'success' ? '<span class="icon-success">✓</span>' : type === 'error' ? '<span class="icon-error">✗</span>' : '<span class="icon-info">ℹ</span>';
+      modal.classList.add('active');
+    }
+    function closeModal() { document.getElementById('customModal').classList.remove('active'); }
+
+    // ==========================================
+    // 獨立網頁 API 連線設定
+    // ==========================================
+    let API_URL = "";
+
+    document.addEventListener("DOMContentLoaded", () => {
+      fetch('config.json')
+        .then(res => res.json())
+        .then(config => {
+          API_URL = config.apiUrl;
+          if(!API_URL) throw new Error("API 網址空白");
+          fetchCalendarData();
+        })
+        .catch(err => {
+          showModal("設定錯誤", "無法讀取 config.json 檔案，或是尚未設定 API 網址。", "error");
+          document.querySelector('.loading').innerText = "設定檔讀取失敗";
+        });
+    });
+
+    // 封裝與 GAS 的 Fetch 請求 (重點：使用 text/plain 避免 CORS 預檢失敗)
+    async function apiCall(action, payload = {}) {
+      const bodyData = JSON.stringify({ action: action, ...payload });
+      try {
+        const response = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: bodyData
+        });
+        return await response.json();
+      } catch (err) {
+        throw new Error("API 連線失敗");
+      }
+    }
+
+    // ==========================================
+    // 密碼驗證
+    // ==========================================
+    function requestAdminAccess() {
+      const input = document.getElementById('adminPwdInput');
+      input.value = '';
+      document.getElementById('passwordModal').classList.add('active');
+      setTimeout(() => input.focus(), 100);
+      input.onkeypress = function(e) { if(e.key === 'Enter') verifyAndToggleView(); };
+    }
+
+    function closePasswordModal() { document.getElementById('passwordModal').classList.remove('active'); }
+
+    function verifyAndToggleView() {
+      const pwd = document.getElementById('adminPwdInput').value;
+      if (!pwd) return showModal("提示", "請輸入密碼。", "info");
+      
+      const btn = document.getElementById('btnVerify');
+      btn.innerText = "驗證中...";
+      btn.disabled = true;
+
+      apiCall('verifyAdminPassword', { password: pwd })
+        .then(res => {
+          btn.innerText = "確認";
+          btn.disabled = false;
+          if (res.success && res.isValid) {
+            closePasswordModal();
+            document.getElementById('calendarView').classList.remove('active');
+            document.getElementById('adminView').classList.add('active');
+          } else {
+            showModal("驗證失敗", "密碼錯誤，請重新輸入。", "error");
+            document.getElementById('adminPwdInput').value = '';
+          }
+        })
+        .catch(() => {
+          btn.innerText = "確認";
+          btn.disabled = false;
+          showModal("系統錯誤", "無法連線至伺服器驗證密碼。", "error");
+        });
+    }
+
+    function backToCalendar() {
+      document.getElementById('adminView').classList.remove('active');
+      document.getElementById('calendarView').classList.add('active');
+    }
+
+    // ==========================================
+    // 取得資料與顯示邏輯
+    // ==========================================
+    let allCalendarData = [];
+    let currentWeekIndex = 0;
+
+    function fetchCalendarData() {
+      apiCall('getCalendarData')
+        .then(res => {
+          if(res.success) {
+            initCalendar(res.data);
+          } else {
+            showModal("載入失敗", "讀取失敗: " + res.message, "error");
+          }
+        })
+        .catch(() => showModal("連線失敗", "無法從伺服器讀取行事曆。", "error"));
+    }
+
+    function initCalendar(data) {
+      const container = document.getElementById('calendarContainer');
+      const weekNav = document.getElementById('weekNav');
+      
+      if (!data || data.length === 0) {
+        weekNav.style.display = 'none';
+        container.innerHTML = '<div class="loading">目前尚無行事曆資料，請切換至後台管理上傳。</div>';
+        return;
+      }
+
+      allCalendarData = data;
+      weekNav.style.display = 'flex';
+      
+      currentWeekIndex = findCurrentWeekIndex(data);
+      renderCurrentWeek();
+    }
+
+    function findCurrentWeekIndex(data) {
+      const today = new Date();
+      const currentMonth = today.getMonth() + 1; 
+      const currentDate = today.getDate();
+      const todayVal = currentMonth * 100 + currentDate; 
+
+      for (let i = 0; i < data.length; i++) {
+        const dateStr = data[i]['日期']; 
+        if (!dateStr) continue;
+
+        const parts = dateStr.split('~');
+        if (parts.length === 2) {
+          const startParts = parts[0].split('/');
+          const endParts = parts[1].split('/');
+          
+          if (startParts.length === 2 && endParts.length === 2) {
+            let sMonth = parseInt(startParts[0].trim());
+            let sDay = parseInt(startParts[1].trim());
+            let eMonth = parseInt(endParts[0].trim());
+            let eDay = parseInt(endParts[1].trim());
+
+            let startVal = sMonth * 100 + sDay;
+            let endVal = eMonth * 100 + eDay;
+            let targetVal = todayVal;
+
+            if (sMonth > 6 && eMonth < 6) { 
+              endVal += 1200; 
+              if (currentMonth < 6) targetVal += 1200;
+            } else if (sMonth > 6 && currentMonth < 6) {
+              targetVal += 1200;
+            }
+
+            if (targetVal >= startVal && targetVal <= endVal) { return i; }
+          }
+        }
+      }
+      return 0; 
+    }
+
+    function formatContent(str) {
+      if (!str) return '';
+      let res = str.replace(/\n/g, '<br>');
+      res = res.replace(/([^>])\s*([※]|[1-9][0-9]*\.)/g, '$1<br>$2');
+      return res;
+    }
+
+    function renderCurrentWeek() {
+      const row = allCalendarData[currentWeekIndex];
+      const container = document.getElementById('calendarContainer');
+      
+      const weekText = row['週次'] || `第 ${currentWeekIndex + 1} 週`;
+      const dateText = row['日期'] ? ` (${row['日期']})` : '';
+      document.getElementById('weekLabel').innerText = weekText + dateText;
+
+      document.getElementById('prevBtn').disabled = (currentWeekIndex === 0);
+      document.getElementById('nextBtn').disabled = (currentWeekIndex === allCalendarData.length - 1);
+
+      const headers = ['行政', '教務處', '學務處', '總務處', '特教'];
+      
+      let html = '<div class="tab-buttons">';
+      headers.forEach((h, index) => {
+        const activeClass = index === 0 ? 'active' : '';
+        html += `<button class="tab-btn ${activeClass}" onclick="switchTab('${h}')" id="btn-${h}">${h}</button>`;
+      });
+      html += '</div>';
+
+      html += '<div class="tab-content">';
+      headers.forEach((h, index) => {
+        const activeClass = index === 0 ? 'active' : '';
+        const formattedStr = formatContent(row[h]);
+        const content = formattedStr ? formattedStr : '<span class="empty-message">(本處室當週無排定行事)</span>';
+        
+        html += `<div class="tab-pane ${activeClass}" id="pane-${h}">${content}</div>`;
+      });
+      html += '</div>';
+      
+      container.innerHTML = html;
+    }
+
+    function switchTab(targetId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+      
+      document.getElementById('btn-' + targetId).classList.add('active');
+      document.getElementById('pane-' + targetId).classList.add('active');
+    }
+
+    function changeWeek(delta) {
+      let newIndex = currentWeekIndex + delta;
+      if (newIndex >= 0 && newIndex < allCalendarData.length) {
+        currentWeekIndex = newIndex;
+        renderCurrentWeek();
+      }
+    }
+
+    // ==========================================
+    // 上傳與解析邏輯
+    // ==========================================
+    function handleUpload() {
+      const wordFile = document.getElementById('wordFile').files[0];
+      if (!wordFile) return showModal("提示", "請先選擇一個 Word (.docx) 檔案！", "info");
+
+      document.getElementById('btnUpload').disabled = true;
+      document.getElementById('btnUpload').innerText = "解析與上傳中...";
+
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        mammoth.convertToHtml({arrayBuffer: event.target.result})
+          .then(result => parseCalendarHtml(result.value))
+          .catch(err => {
+            resetUploadBtn(); showModal("解析錯誤", "Word 檔案解析失敗。<br>" + err.message, "error");
+          });
+      };
+      reader.readAsArrayBuffer(wordFile);
+    }
+
+    function parseCalendarHtml(htmlString) {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlString;
+      const rows = Array.from(tempDiv.querySelectorAll('tr'));
+      if (rows.length === 0) {
+        resetUploadBtn(); return showModal("解析失敗", "找不到表格結構。", "error");
+      }
+
+      let parsedRecords = [];
+      let currentBlock = {};
+
+      const extractCurrentBlock = () => {
+        const weeks = currentBlock['週次'] || [];
+        for (let i = 0; i < weeks.length; i++) {
+          if (!weeks[i].replace(/\s/g, '')) continue; 
+          parsedRecords.push({
+            week: weeks[i] || "",
+            date: (currentBlock['日期'] && currentBlock['日期'][i]) ? currentBlock['日期'][i] : "",
+            admin: (currentBlock['行政'] && currentBlock['行政'][i]) ? currentBlock['行政'][i] : "",
+            academic: (currentBlock['教務處'] && currentBlock['教務處'][i]) ? currentBlock['教務處'][i] : "",
+            student: (currentBlock['學務處'] && currentBlock['學務處'][i]) ? currentBlock['學務處'][i] : "",
+            general: (currentBlock['總務處'] && currentBlock['總務處'][i]) ? currentBlock['總務處'][i] : "",
+            special: (currentBlock['特教'] && currentBlock['特教'][i]) ? currentBlock['特教'][i] : "",
+            image: "" 
+          });
+        }
+      };
+
+      rows.forEach(row => {
+        const cells = Array.from(row.querySelectorAll('td, th')).map(cell => cell.innerText.trim());
+        if(cells.length === 0) return;
+        let header = cells[0].replace(/\s/g, '');
+        if (header.includes('週次')) {
+          if (currentBlock['週次']) extractCurrentBlock();
+          currentBlock = {}; header = '週次';
+        }
+        if (['週次', '日期', '行政', '教務處', '學務處', '總務處', '特教'].includes(header)) {
+          currentBlock[header] = cells.slice(1);
+        }
+      });
+      if (currentBlock['週次']) extractCurrentBlock();
+
+      if (parsedRecords.length === 0) {
+        resetUploadBtn(); return showModal("解析失敗", "格式不符。", "error");
+      }
+
+      apiCall('saveCalendarData', { records: parsedRecords })
+        .then(res => {
+          resetUploadBtn();
+          if(res.success) {
+            showModal("上傳成功", "完整資料已儲存至試算表！", "success");
+            fetchCalendarData();
+            backToCalendar();
+          } else {
+            showModal("儲存失敗", res.message, "error");
+          }
+        })
+        .catch(() => {
+          resetUploadBtn();
+          showModal("系統錯誤", "連線失敗。", "error");
+        });
+    }
+
+    function resetUploadBtn() {
+      const btn = document.getElementById('btnUpload');
+      btn.disabled = false; btn.innerText = "解析並覆蓋原資料";
+    }
+  </script>
+</body>
+</html>
